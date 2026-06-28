@@ -20,6 +20,13 @@ class AgentReceive:
             },
         }
 
+    @classmethod
+    def IS_CHANGED(cls, *args, **kwargs):
+        # The agent pushes new messages independently of this node's inputs, so
+        # ComfyUI must re-run it on every queue rather than serve a cached output.
+        # NaN != NaN, so the node is always considered "changed" (always dirty).
+        return float("nan")
+
     def run(self, channel="main", wait_seconds=30.0):
         got = ChannelStore.instance().receive(channel, wait_seconds=wait_seconds)
         text = got["text"] if got["text"] is not None else ""

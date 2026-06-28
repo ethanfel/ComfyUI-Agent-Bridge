@@ -1,7 +1,18 @@
+import math
+
 import torch
 from src.bridge.store import ChannelStore
 from src.bridge import images
 from src.nodes.receive import AgentReceive
+
+
+def test_is_changed_is_always_dirty():
+    # NaN is never equal to itself, so ComfyUI re-runs the node every queue and
+    # picks up newly pushed messages instead of serving a cached output.
+    a = AgentReceive.IS_CHANGED(channel="main", wait_seconds=0.0)
+    b = AgentReceive.IS_CHANGED(channel="main", wait_seconds=0.0)
+    assert math.isnan(a) and math.isnan(b)
+    assert a != b  # NaN != NaN
 
 def test_receive_text(monkeypatch):
     ChannelStore.instance().push("main", text="done")
