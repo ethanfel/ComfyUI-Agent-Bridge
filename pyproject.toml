@@ -1,0 +1,10 @@
+[project]
+name = "comfyui-nodes-agents"
+version = "0.1.0"
+description = "In-graph ComfyUI nodes + MCP bridge for external coding agents (Claude Code / Codex)"
+requires-python = ">=3.10"
+dependencies = ["mcp>=1.2.0"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

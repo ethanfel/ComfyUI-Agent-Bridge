@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.comfy_bridge_tmp/
