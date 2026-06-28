@@ -1,6 +1,15 @@
+import builtins
 import threading
 import time
 from dataclasses import dataclass, field
+
+# The singleton is stashed on `builtins` (one object per process, shared by every
+# import) rather than on the class. ComfyUI can load this module under two
+# different identities (e.g. `<pkg>.src.bridge.store` for the nodes and a second
+# path for the MCP server), which would give each its own class object — and thus
+# its own class-level singleton — so the MCP server and the nodes would silently
+# use different stores. Keying off builtins guarantees one shared instance.
+_GLOBAL_ATTR = "_comfyui_agent_bridge_channel_store"
 
 
 @dataclass
@@ -18,23 +27,23 @@ class _Channel:
 
 
 class ChannelStore:
-    _singleton: "ChannelStore | None" = None
-
     def __init__(self):
         self._lock = threading.Lock()
         self._cond = threading.Condition(self._lock)
         self._channels: dict[str, _Channel] = {}
 
-    # --- singleton plumbing ---
+    # --- singleton plumbing (process-global; see _GLOBAL_ATTR note above) ---
     @classmethod
     def instance(cls) -> "ChannelStore":
-        if cls._singleton is None:
-            cls._singleton = cls()
-        return cls._singleton
+        inst = getattr(builtins, _GLOBAL_ATTR, None)
+        if inst is None:
+            inst = cls()
+            setattr(builtins, _GLOBAL_ATTR, inst)
+        return inst
 
     @classmethod
     def reset(cls) -> None:
-        cls._singleton = cls()
+        setattr(builtins, _GLOBAL_ATTR, cls())
 
     def _chan(self, name: str) -> _Channel:
         ch = self._channels.get(name)
