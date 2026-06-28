@@ -17,13 +17,14 @@ or the tools below will fail to connect.
 
 Each channel name (default `main`) has two directions:
 
-- **inbox** = graph -> agent: an `Agent Emit` node writes the latest text/image;
-  you read it with `comfy_pull`.
-- **outbox** = agent -> graph: you write with `comfy_push`; an `Agent Receive`
-  node reads it. Each pushed value is **consumed once** (turn-based).
+- **inbox** = graph -> agent: `Agent Emit` nodes enqueue text/image/seed; you
+  dequeue the oldest with `comfy_pull` (FIFO, empty when drained).
+- **outbox** = agent -> graph: you enqueue with `comfy_push`; an `Agent Receive`
+  node dequeues the oldest (FIFO). Every message is delivered exactly once, in
+  order — nothing is overwritten or dropped.
 
 Use distinct channel names for distinct streams (e.g. `in`, `out`, `prompt`,
-`render`); two `Agent Receive` nodes on one channel compete for the same push.
+`render`); two `Agent Receive` nodes on one channel split the same queue.
 
 ## The five tools
 

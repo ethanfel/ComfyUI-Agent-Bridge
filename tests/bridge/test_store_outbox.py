@@ -36,14 +36,25 @@ def test_receive_aborts_when_should_abort_raises():
     assert calls["n"] >= 2
 
 
-def test_peek_does_not_consume():
+def test_push_receive_is_fifo():
     s = ChannelStore.instance()
+    s.push("q", text="A")
+    s.push("q", text="B")
+    s.push("q", text="C")
+    assert [s.receive("q", 0)["text"] for _ in range(3)] == ["A", "B", "C"]
+    assert s.receive("q", 0)["text"] is None     # drained
+
+
+def test_peek_returns_last_delivered():
+    s = ChannelStore.instance()
+    assert s.peek("p")["text"] is None           # nothing delivered yet
     s.push("p", text="x")
-    assert s.peek("p")["text"] == "x"
-    assert s.peek("p")["text"] == "x"            # peek is non-destructive
-    assert s.receive("p", 0)["text"] == "x"      # receive consumes
-    assert s.receive("p", 0)["text"] is None     # nothing fresh now
-    assert s.peek("p")["text"] == "x"            # last value still peekable
+    s.push("p", text="y")
+    assert s.peek("p")["text"] is None           # peek doesn't deliver
+    assert s.receive("p", 0)["text"] == "x"
+    assert s.peek("p")["text"] == "x"            # last delivered, queue untouched
+    assert s.receive("p", 0)["text"] == "y"      # 'y' still queued
+    assert s.peek("p")["text"] == "y"
 
 def test_receive_nonblocking_empty_channel():
     s = ChannelStore.instance()
