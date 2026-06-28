@@ -24,6 +24,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "AgentReceive": "Agent Receive (← agent)",
 }
 
+# Frontend JS (Auto Queue stop signal handler) lives in ./web.
+WEB_DIRECTORY = "./web"
+
 # The MCP bridge is optional: it needs the `mcp` package. If that isn't installed
 # in ComfyUI's Python, keep the nodes working and tell the user how to enable it.
 try:
@@ -43,4 +46,4 @@ except ModuleNotFoundError as exc:
 except Exception as exc:  # never block ComfyUI startup
     print(f"[comfyui-agent-bridge] MCP bridge failed to start: {exc}")
 
-__all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
+__all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]

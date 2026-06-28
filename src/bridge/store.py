@@ -98,6 +98,15 @@ class ChannelStore:
                     return empty
                 self._cond.wait(timeout=remaining)
 
+    def peek(self, channel: str) -> dict:
+        """Last pushed outbox value, WITHOUT consuming it (for keep-last)."""
+        with self._lock:
+            ch = self._channels.get(channel)
+            if ch is None:
+                return {"turn": 0, "text": None, "image_path": None}
+            s = ch.outbox
+            return {"turn": s.turn, "text": s.text, "image_path": s.image_path}
+
     def list_channels(self) -> list[dict]:
         with self._lock:
             return [

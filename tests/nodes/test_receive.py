@@ -32,6 +32,34 @@ def test_receive_image(tmp_path):
 
 def test_receive_timeout_returns_empty():
     node = AgentReceive()
-    text, image = node.run(channel="main", wait_seconds=0.2)
+    text, image = node.run(channel="main", wait_seconds=0.2, keep_last=False)
+    assert text == ""
+    assert image.shape[0] == 1
+
+
+def test_keep_last_holds_value_after_consume():
+    ChannelStore.instance().push("main", text="held-msg")
+    node = AgentReceive()
+    t1, _ = node.run(channel="main", wait_seconds=0.0)
+    assert t1 == "held-msg"  # consumed the fresh message
+    # no new push -> keep_last holds the last value instead of blanking
+    t2, _ = node.run(channel="main", wait_seconds=0.0, keep_last=True,
+                     stop_on_timeout=False)
+    assert t2 == "held-msg"
+
+
+def test_keep_last_false_blanks_after_consume():
+    ChannelStore.instance().push("main", text="one")
+    node = AgentReceive()
+    node.run(channel="main", wait_seconds=0.0)  # consume
+    t2, _ = node.run(channel="main", wait_seconds=0.0, keep_last=False,
+                     stop_on_timeout=False)
+    assert t2 == ""
+
+
+def test_stop_on_timeout_without_server_does_not_crash():
+    node = AgentReceive()
+    text, image = node.run(channel="main", wait_seconds=0.0,
+                           stop_on_timeout=True)
     assert text == ""
     assert image.shape[0] == 1

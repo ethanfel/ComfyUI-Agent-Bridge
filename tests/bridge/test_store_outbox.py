@@ -12,6 +12,16 @@ def test_push_then_receive_consumes_once():
     again = s.receive("main", wait_seconds=0)
     assert again["text"] is None and again["image_path"] is None
 
+
+def test_peek_does_not_consume():
+    s = ChannelStore.instance()
+    s.push("p", text="x")
+    assert s.peek("p")["text"] == "x"
+    assert s.peek("p")["text"] == "x"            # peek is non-destructive
+    assert s.receive("p", 0)["text"] == "x"      # receive consumes
+    assert s.receive("p", 0)["text"] is None     # nothing fresh now
+    assert s.peek("p")["text"] == "x"            # last value still peekable
+
 def test_receive_nonblocking_empty_channel():
     s = ChannelStore.instance()
     got = s.receive("nope", wait_seconds=0)

@@ -17,6 +17,8 @@ class AgentReceive:
                 "channel": ("STRING", {"default": "main"}),
                 "wait_seconds": ("FLOAT", {"default": 30.0, "min": 0.0,
                                            "max": 86400.0, "step": 1.0}),
+                "keep_last": ("BOOLEAN", {"default": True}),
+                "stop_on_timeout": ("BOOLEAN", {"default": True}),
             },
         }
 
@@ -27,11 +29,38 @@ class AgentReceive:
         # NaN != NaN, so the node is always considered "changed" (always dirty).
         return float("nan")
 
-    def run(self, channel="main", wait_seconds=30.0):
-        got = ChannelStore.instance().receive(channel, wait_seconds=wait_seconds)
-        text = got["text"] if got["text"] is not None else ""
-        if got["image_path"]:
-            image = images.load_png_tensor(got["image_path"])
+    @staticmethod
+    def _format(payload):
+        text = payload["text"] if payload["text"] is not None else ""
+        if payload["image_path"]:
+            image = images.load_png_tensor(payload["image_path"])
         else:
             image = images.empty_image()
         return (text, image)
+
+    @staticmethod
+    def _signal_stop_autoqueue(channel):
+        # Only the browser can toggle Auto Queue, so ask the frontend to stop.
+        # Lazy import + best-effort: ComfyUI's `server` isn't available in tests.
+        try:
+            from server import PromptServer
+            PromptServer.instance.send_sync(
+                "agent-bridge-stop-autoqueue", {"channel": channel})
+        except Exception:
+            pass
+
+    def run(self, channel="main", wait_seconds=30.0, keep_last=True,
+            stop_on_timeout=True):
+        store = ChannelStore.instance()
+        got = store.receive(channel, wait_seconds=wait_seconds)
+        if got["turn"] > 0:
+            # a fresh message arrived
+            return self._format(got)
+        # timeout: nothing new within wait_seconds
+        if stop_on_timeout:
+            self._signal_stop_autoqueue(channel)
+        if keep_last:
+            last = store.peek(channel)
+            if last["turn"] > 0:
+                return self._format(last)
+        return ("", images.empty_image())

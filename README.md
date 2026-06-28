@@ -50,11 +50,18 @@ bridge failure never blocks ComfyUI from loading the nodes.
 
 **Agent Receive (<- agent)** — receive from the agent into the graph.
 - Inputs: `channel` (STRING, default `main`); `wait_seconds` (FLOAT, default
-  `30.0`, max `86400`).
+  `30.0`, max `86400`); `keep_last` (BOOLEAN, default `true`); `stop_on_timeout`
+  (BOOLEAN, default `true`).
 - Blocks up to `wait_seconds` for a new `comfy_push` on the channel, then
-  outputs `(text, image)`. On timeout/empty it returns `""` and a 64x64 black
-  placeholder image. Each pushed value is **consumed once** (turn-based), so a
-  second receive with no new push returns empty.
+  outputs `(text, image)`. Each pushed value is **consumed once** (turn-based),
+  so a second receive with no new push won't replay it.
+- **`keep_last`** — on timeout (no new message), output the *last* message again
+  instead of blanking. Great for Auto Queue so the display holds steady between
+  evals. Off → returns `""` + a 64x64 black placeholder on timeout.
+- **`stop_on_timeout`** — on timeout, signal the ComfyUI frontend to switch
+  **Auto Queue off**, so the loop halts when the message stream goes quiet
+  instead of spinning. (Handled by the bundled `web/agent_bridge.js`; best-effort
+  across ComfyUI frontend versions.)
 
 > Single Receive per channel: the consume-once model means two `Agent Receive`
 > nodes on the same channel compete for pushes. Use distinct channel names.
