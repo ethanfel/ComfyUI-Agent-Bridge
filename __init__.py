@@ -1,20 +1,19 @@
 """ComfyUI-Agent-Bridge: in-graph bridge nodes + MCP server for coding agents."""
-try:
-    # Normal path: ComfyUI loads this dir as a package, so relative imports work
-    # (and nothing generic like `src` leaks onto sys.path to collide with other
-    # custom nodes).
+import os
+import sys
+
+# Import our internal package whether ComfyUI loads us as a package (relative
+# imports work) or we're imported standalone (tests). Using __package__ as the
+# signal — instead of a broad try/except — avoids masking real errors (e.g. a
+# missing dependency) as an import-context problem. The node modules need only
+# torch/numpy/Pillow (always present in ComfyUI), not `mcp`.
+if __package__:
     from .src.nodes.emit import AgentEmit
     from .src.nodes.receive import AgentReceive
-    from .src.bridge import mcp_server
-except ImportError:
-    # Fallback: imported standalone (e.g. test suite / direct import) where there
-    # is no parent package — put our own dir on sys.path and import absolutely.
-    import os
-    import sys
+else:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from src.nodes.emit import AgentEmit
     from src.nodes.receive import AgentReceive
-    from src.bridge import mcp_server
 
 NODE_CLASS_MAPPINGS = {
     "AgentEmit": AgentEmit,
@@ -25,10 +24,23 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "AgentReceive": "Agent Receive (← agent)",
 }
 
-# Start the MCP bridge when ComfyUI loads this package.
+# The MCP bridge is optional: it needs the `mcp` package. If that isn't installed
+# in ComfyUI's Python, keep the nodes working and tell the user how to enable it.
 try:
+    if __package__:
+        from .src.bridge import mcp_server
+    else:
+        from src.bridge import mcp_server
     mcp_server.start_in_background()
+except ModuleNotFoundError as exc:
+    if (exc.name or "").split(".")[0] == "mcp":
+        print("[comfyui-agent-bridge] MCP bridge disabled: 'mcp' is not installed "
+              "in ComfyUI's Python. The Agent Emit/Receive nodes still load; "
+              "enable the bridge with:\n"
+              f"    {sys.executable} -m pip install 'mcp>=1.2.0'")
+    else:
+        print(f"[comfyui-agent-bridge] MCP bridge failed to start: {exc}")
 except Exception as exc:  # never block ComfyUI startup
-    print(f"[comfyui-nodes-agents] MCP bridge failed to start: {exc}")
+    print(f"[comfyui-agent-bridge] MCP bridge failed to start: {exc}")
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
