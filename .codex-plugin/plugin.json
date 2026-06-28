@@ -1,0 +1,37 @@
+{
+  "name": "comfyui-agents",
+  "version": "0.1.0",
+  "description": "Bridge an external coding agent (Codex) to a running ComfyUI graph: exchange text and images on named channels and trigger workflow runs over MCP.",
+  "author": {
+    "name": "Ethan Fel",
+    "email": "ethan.fel@ts-pc.fr"
+  },
+  "homepage": "https://github.com/ethanfel/ComfyUI-Nodes-Agents",
+  "repository": "https://github.com/ethanfel/ComfyUI-Nodes-Agents",
+  "license": "MIT",
+  "keywords": [
+    "comfyui",
+    "mcp",
+    "agent",
+    "image-generation",
+    "bridge"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.codex-plugin/mcp.json",
+  "interface": {
+    "displayName": "ComfyUI Agent Bridge",
+    "shortDescription": "Exchange text/images with a running ComfyUI graph and trigger runs over MCP",
+    "longDescription": "Connects Codex to the ComfyUI-Nodes-Agents in-process MCP server (HTTP, 127.0.0.1:9188/mcp). Pull images/text the graph emitted, push text/images back into the graph, list channels, and run saved workflows from the agent.",
+    "developerName": "Ethan Fel",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Pull the latest image from the ComfyUI graph and describe it.",
+      "Push a prompt to ComfyUI and run the txt2img workflow."
+    ],
+    "brandColor": "#1F6FEB"
+  }
+}

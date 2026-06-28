@@ -1,0 +1,20 @@
+{
+  "name": "comfyui-agents",
+  "interface": {
+    "displayName": "ComfyUI Agents"
+  },
+  "plugins": [
+    {
+      "name": "comfyui-agents",
+      "source": {
+        "source": "local",
+        "path": "."
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
