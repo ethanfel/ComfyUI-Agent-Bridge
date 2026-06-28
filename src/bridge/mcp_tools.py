@@ -34,6 +34,9 @@ async def comfy_run_workflow(name: str, inputs: dict | None = None,
     import asyncio
     for _ in range(600):  # ~60s at 0.1s
         res = await workflows.fetch_result(prompt_id, base_url=COMFY_BASE_URL)
+        # Best-effort: returns as soon as any output node appears in /history.
+        # The design's upgrade path is the ComfyUI websocket `executed` event
+        # for precise completion signalling instead of polling.
         if res["images"] or res["raw"]:
             return {"prompt_id": prompt_id, "status": "done", **res}
         await asyncio.sleep(0.1)
