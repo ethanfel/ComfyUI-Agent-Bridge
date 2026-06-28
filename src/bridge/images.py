@@ -28,7 +28,7 @@ def save_tensor_png(tensor: torch.Tensor, out_dir: str) -> str:
     if tensor.ndim == 4:
         tensor = tensor[0]
     arr = (tensor.clamp(0, 1).cpu().numpy() * 255.0).round().astype(np.uint8)
-    img = Image.fromarray(arr, mode="RGB")
+    img = Image.fromarray(arr)  # arr shape (H,W,3) already implies RGB
     path = os.path.join(out_dir, f"img_{uuid.uuid4().hex}.png")
     img.save(path)
     _reap_old(out_dir, keep=path)
