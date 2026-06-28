@@ -1,10 +1,5 @@
-import os
 from src.bridge.store import ChannelStore
-from src.bridge import images
-
-
-def _tmp_dir() -> str:
-    return os.environ.get("COMFY_BRIDGE_TMP", ".comfy_bridge_tmp")
+from src.bridge import images, paths
 
 
 class AgentEmit:
@@ -30,7 +25,7 @@ class AgentEmit:
     def run(self, channel="main", text=None, image=None):
         image_path = None
         if image is not None:
-            image_path = images.save_tensor_png(image, _tmp_dir())
+            image_path = images.save_tensor_png(image, paths.tmp_dir())
         text_val = text if text else None
         ChannelStore.instance().emit(channel, text=text_val, image_path=image_path)
         return (text_val, image)

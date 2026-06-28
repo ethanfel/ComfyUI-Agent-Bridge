@@ -1,19 +1,24 @@
 """SDK-independent MCP tool logic. Bound to FastMCP in mcp_server.py."""
 import os
 from src.bridge.store import ChannelStore
-from src.bridge import workflows
+from src.bridge import workflows, paths
 
 COMFY_BASE_URL = os.environ.get("COMFY_BASE_URL", "http://127.0.0.1:8188")
 
 
 def comfy_pull(channel: str = "main") -> dict:
     """Read the latest text/image the graph emitted on a channel."""
-    return ChannelStore.instance().pull(channel)
+    result = ChannelStore.instance().pull(channel)
+    # advertise the path the agent can open (for remote/Docker shared folders)
+    result["image_path"] = paths.to_public(result["image_path"])
+    return result
 
 
 def comfy_push(channel: str = "main", text: str | None = None,
                image_path: str | None = None) -> dict:
     """Send text/image to the graph's Agent Receive node on a channel."""
+    # translate the agent-visible path back to the bridge's container-side path
+    image_path = paths.to_local(image_path)
     turn = ChannelStore.instance().push(channel, text=text, image_path=image_path)
     return {"channel": channel, "out_turn": turn}
 

@@ -150,19 +150,20 @@ the container). To reach it from an agent on another machine:
 `COMFY_BASE_URL` stays `http://127.0.0.1:8188` — the bridge runs *inside* the
 ComfyUI container and reaches ComfyUI over the container's own localhost.
 
-**Images across hosts.** Images cross **by file path**, so the path `comfy_pull`
-returns must point at the same file the agent can open. With a **shared folder**
-between the container and your machine:
+**Images across hosts.** Images cross **by file path**. By default the bridge
+writes them into ComfyUI's **output directory** (`output/agent_bridge/`), which in
+a typical setup is a shared mount visible at the *same path* to both ComfyUI and
+the agent — so paths resolve on both sides with **no configuration**.
 
-- Put the temp dir in the share, e.g. `COMFY_BRIDGE_TMP=/shared/comfy_tmp` (in the container).
-- Mount that share at the **same absolute path** on your machine, so
-  `/shared/comfy_tmp/img_*.png` resolves on both sides — then `comfy_pull` /
-  `comfy_push` image paths work unchanged.
-- If the mount paths **differ** between container and host, the raw path won't
-  resolve agent-side. Either make the paths identical, or switch to base64-inline
-  images (not yet implemented — open an issue if you need it).
+If your container mounts that folder at a **different internal path** than the
+agent sees, set both:
 
-Text needs none of this — it's inline.
+- `COMFY_BRIDGE_TMP` — dir the bridge writes, container-side (e.g. `/ComfyUI/output/agent_bridge`)
+- `COMFY_BRIDGE_TMP_PUBLIC` — the path the agent sees for it (e.g. `/media/unraid/comfyui/output/agent_bridge`)
+
+`comfy_pull` then advertises the agent-visible path and `comfy_push` translates it
+back to the container path before `Agent Receive` loads it. Text needs none of
+this — it's inline.
 
 > **Security:** binding `0.0.0.0` exposes the bridge — including `comfy_run_workflow`
 > (runs saved workflows) and file-path reads — to your LAN with no authentication.
@@ -203,7 +204,8 @@ prompt and an `Agent Emit(channel=render)` on the output, then from the agent:
 | --- | --- | --- |
 | `COMFY_BRIDGE_MCP_HOST` | `127.0.0.1` | Interface the MCP bridge binds. Set `0.0.0.0` to reach it from another host (e.g. ComfyUI in Docker). See [Running ComfyUI in Docker](#running-comfyui-in-docker--on-another-host). |
 | `COMFY_BRIDGE_MCP_PORT` | `9188` | Port the MCP bridge binds (use `0` for an ephemeral port, e.g. in tests). |
-| `COMFY_BRIDGE_TMP` | `.comfy_bridge_tmp` | Temp dir where `Agent Emit` writes image PNGs. |
+| `COMFY_BRIDGE_TMP` | ComfyUI `output/agent_bridge` | Dir where `Agent Emit` writes image PNGs. Defaults to ComfyUI's output dir (a shared, same-path mount in typical setups); falls back to `.comfy_bridge_tmp` outside ComfyUI. |
+| `COMFY_BRIDGE_TMP_PUBLIC` | _(unset)_ | If the container mounts the temp dir at a different path than the agent sees, the prefix the agent should see. `comfy_pull` advertises it; `comfy_push` translates back. See [Docker](#running-comfyui-in-docker--on-another-host). |
 | `COMFY_BRIDGE_TMP_TTL` | `3600` | Age (seconds) after which `save_tensor_png` reaps old `img_*.png` temp files. |
 | `COMFY_BRIDGE_WORKFLOWS` | `workflows` | Dir that `comfy_run_workflow` loads `<name>.json` from. |
 | `COMFY_BASE_URL` | `http://127.0.0.1:8188` | ComfyUI HTTP API base URL used by `comfy_run_workflow` / `comfy_get_result`. |
