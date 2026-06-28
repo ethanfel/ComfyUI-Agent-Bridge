@@ -1,8 +1,25 @@
+import glob
 import os
+import time
 import uuid
 import numpy as np
 import torch
 from PIL import Image
+
+
+def _reap_old(out_dir: str, keep: str) -> None:
+    """Delete img_*.png in out_dir older than COMFY_BRIDGE_TMP_TTL (default
+    3600s) so the temp dir doesn't grow forever. Never touches `keep`."""
+    ttl = float(os.environ.get("COMFY_BRIDGE_TMP_TTL", "3600"))
+    cutoff = time.time() - ttl
+    for f in glob.glob(os.path.join(out_dir, "img_*.png")):
+        if f == keep:
+            continue
+        try:
+            if os.path.getmtime(f) < cutoff:
+                os.unlink(f)
+        except (FileNotFoundError, OSError):
+            pass  # races / permission churn -> best-effort
 
 
 def save_tensor_png(tensor: torch.Tensor, out_dir: str) -> str:
@@ -14,6 +31,7 @@ def save_tensor_png(tensor: torch.Tensor, out_dir: str) -> str:
     img = Image.fromarray(arr, mode="RGB")
     path = os.path.join(out_dir, f"img_{uuid.uuid4().hex}.png")
     img.save(path)
+    _reap_old(out_dir, keep=path)
     return path
 
 
