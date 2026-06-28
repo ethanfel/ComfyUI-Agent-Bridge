@@ -82,7 +82,8 @@ class ChannelStore:
             self._cond.notify_all()
             return ch.outbox.turn
 
-    def receive(self, channel: str, wait_seconds: float = 0.0) -> dict:
+    def receive(self, channel: str, wait_seconds: float = 0.0,
+                should_abort=None, poll_interval: float = 0.1) -> dict:
         empty = {"turn": 0, "text": None, "image_path": None}
         deadline = time.monotonic() + max(0.0, wait_seconds)
         with self._cond:
@@ -96,7 +97,14 @@ class ChannelStore:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     return empty
-                self._cond.wait(timeout=remaining)
+                if should_abort is not None:
+                    # may raise (e.g. ComfyUI interrupt) to break the wait early;
+                    # wake in short slices so an interrupt is noticed promptly.
+                    should_abort()
+                    wait_for = min(poll_interval, remaining)
+                else:
+                    wait_for = remaining
+                self._cond.wait(timeout=wait_for)
 
     def peek(self, channel: str) -> dict:
         """Last pushed outbox value, WITHOUT consuming it (for keep-last)."""

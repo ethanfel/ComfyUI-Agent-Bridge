@@ -39,6 +39,17 @@ class AgentReceive:
         return (text, image)
 
     @staticmethod
+    def _interrupt_check():
+        # Raises ComfyUI's InterruptProcessingException when the user hits Cancel,
+        # so the blocking wait can be aborted. No-op outside ComfyUI (tests).
+        try:
+            from comfy import model_management as mm
+            check = mm.throw_exception_if_processing_interrupted
+        except (ImportError, AttributeError):
+            return
+        check()
+
+    @staticmethod
     def _signal_stop_autoqueue(channel):
         # Only the browser can toggle Auto Queue, so ask the frontend to stop.
         # Lazy import + best-effort: ComfyUI's `server` isn't available in tests.
@@ -52,7 +63,8 @@ class AgentReceive:
     def run(self, channel="main", wait_seconds=30.0, keep_last=True,
             stop_on_timeout=True):
         store = ChannelStore.instance()
-        got = store.receive(channel, wait_seconds=wait_seconds)
+        got = store.receive(channel, wait_seconds=wait_seconds,
+                            should_abort=self._interrupt_check)
         if got["turn"] > 0:
             # a fresh message arrived
             return self._format(got)
