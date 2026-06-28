@@ -65,22 +65,37 @@ bridge failure never blocks ComfyUI from loading the nodes.
 
 The bridge speaks **MCP over streamable HTTP** at `http://127.0.0.1:9188/mcp`.
 
-**Claude Code (HTTP, recommended):**
+### Codex (plugin — recommended)
+
+This repo ships as a **Codex plugin**. Point Codex at the repo as a marketplace,
+then install the plugin; Codex auto-registers the `comfy` MCP server (HTTP, no
+auth) and the `comfyui-bridge` skill. Verified on Codex CLI 0.142.3:
 
 ```bash
-claude mcp add --transport http comfy http://127.0.0.1:9188/mcp
+codex plugin marketplace add /path/to/ComfyUI-Nodes-Agents
+codex plugin add comfyui-agents@comfyui-agents
 ```
 
-Then in Claude Code, `/mcp` should list the five tools.
+Confirm registration:
 
-### Codex
+```bash
+codex mcp get comfy
+# transport: streamable_http
+# url: http://127.0.0.1:9188/mcp
+```
 
-Codex reads `~/.codex/config.toml`. Use **either** method below (HTTP is
-preferred). The exact key schema can vary by Codex version; the snippets here
-match the form `codex mcp add` writes on Codex CLI 0.142.3, verified locally.
+The plugin only *declares* the HTTP server URL, so ComfyUI (and the bridge) must
+be running for the tools to connect.
 
-**Codex (HTTP, newer builds):** point a streamable-HTTP MCP server at the URL —
-equivalent to `codex mcp add comfy --url http://127.0.0.1:9188/mcp`:
+### Codex (single MCP server, no plugin)
+
+If you'd rather not install the plugin, add just the MCP server:
+
+```bash
+codex mcp add comfy --url http://127.0.0.1:9188/mcp
+```
+
+This writes a streamable-HTTP entry equivalent to:
 
 ```toml
 [mcp_servers.comfy]
@@ -102,6 +117,14 @@ env = { COMFY_BRIDGE_URL = "http://127.0.0.1:9188/mcp" }
 The shim requires ComfyUI (and the bridge) to be running; if it can't reach the
 HTTP bridge it exits non-zero with a clear stderr message so Codex surfaces the
 error. Use an absolute path to the shim.
+
+### Claude Code (HTTP)
+
+```bash
+claude mcp add --transport http comfy http://127.0.0.1:9188/mcp
+```
+
+Then in Claude Code, `/mcp` should list the five tools.
 
 ## MCP tools
 
