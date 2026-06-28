@@ -1,13 +1,12 @@
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass
 class _Slot:
-    text: Optional[str] = None
-    image_path: Optional[str] = None
+    text: str | None = None
+    image_path: str | None = None
     turn: int = 0
 
 
@@ -45,8 +44,8 @@ class ChannelStore:
         return ch
 
     # --- inbox: graph -> agent ---
-    def emit(self, channel: str, text: Optional[str] = None,
-             image_path: Optional[str] = None) -> int:
+    def emit(self, channel: str, text: str | None = None,
+             image_path: str | None = None) -> int:
         with self._cond:
             ch = self._chan(channel)
             ch.inbox.turn += 1
@@ -64,8 +63,8 @@ class ChannelStore:
             return {"turn": s.turn, "text": s.text, "image_path": s.image_path}
 
     # --- outbox: agent -> graph ---
-    def push(self, channel: str, text: Optional[str] = None,
-             image_path: Optional[str] = None) -> int:
+    def push(self, channel: str, text: str | None = None,
+             image_path: str | None = None) -> int:
         with self._cond:
             ch = self._chan(channel)
             ch.outbox.turn += 1

@@ -1,14 +1,13 @@
 import copy
 import json
 import os
-from typing import Optional
 
 
 def workflows_dir() -> str:
     return os.environ.get("COMFY_BRIDGE_WORKFLOWS", "workflows")
 
 
-def load_workflow(name: str, base_dir: Optional[str] = None) -> dict:
+def load_workflow(name: str, base_dir: str | None = None) -> dict:
     base = base_dir or workflows_dir()
     path = os.path.join(base, f"{name}.json")
     if not os.path.exists(path):
@@ -17,7 +16,7 @@ def load_workflow(name: str, base_dir: Optional[str] = None) -> dict:
         return json.load(fh)
 
 
-def apply_inputs(workflow: dict, inputs: Optional[dict]) -> dict:
+def apply_inputs(workflow: dict, inputs: dict | None) -> dict:
     """inputs: {"<node_id>.<field>": value}. Returns a new dict (no mutation)."""
     wf = copy.deepcopy(workflow)
     for key, value in (inputs or {}).items():
