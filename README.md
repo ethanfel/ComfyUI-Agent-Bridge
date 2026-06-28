@@ -57,6 +57,10 @@ bridge failure never blocks ComfyUI from loading the nodes.
 > Single Receive per channel: the consume-once model means two `Agent Receive`
 > nodes on the same channel compete for pushes. Use distinct channel names.
 
+> `wait_seconds` blocks a ComfyUI execution worker for its whole duration.
+> Outside interactive use, keep it modest (seconds, not hours) so you don't tie
+> up a worker waiting on an agent.
+
 ## Connecting an agent
 
 The bridge speaks **MCP over streamable HTTP** at `http://127.0.0.1:9188/mcp`.
@@ -69,18 +73,35 @@ claude mcp add --transport http comfy http://127.0.0.1:9188/mcp
 
 Then in Claude Code, `/mcp` should list the five tools.
 
-**Codex (HTTP):** add an MCP server pointing at the same URL, e.g. in
-`~/.codex/config.toml`:
+### Codex
+
+Codex reads `~/.codex/config.toml`. Use **either** method below (HTTP is
+preferred). The exact key schema can vary by Codex version; the snippets here
+match the form `codex mcp add` writes on Codex CLI 0.142.3, verified locally.
+
+**Codex (HTTP, newer builds):** point a streamable-HTTP MCP server at the URL —
+equivalent to `codex mcp add comfy --url http://127.0.0.1:9188/mcp`:
 
 ```toml
 [mcp_servers.comfy]
 url = "http://127.0.0.1:9188/mcp"
 ```
 
-**Codex (stdio only):** if your Codex build cannot use HTTP MCP, point it at
-`scripts/codex_stdio_shim.py`. Note: the shim is a documented scaffold and is
-**not** implemented for the installed MCP SDK (mcp 1.28.1 ships no proxy
-helper) — it prints guidance and exits non-zero. Prefer HTTP MCP.
+**Codex (stdio only):** if your Codex build can *only* speak stdio MCP, point it
+at `scripts/codex_stdio_shim.py` — a real stdio<->HTTP MCP proxy that connects
+to the same bridge URL and forwards tool calls. Equivalent to
+`codex mcp add comfy --env COMFY_BRIDGE_URL=http://127.0.0.1:9188/mcp -- python /abs/path/scripts/codex_stdio_shim.py`:
+
+```toml
+[mcp_servers.comfy]
+command = "python"
+args = ["/abs/path/ComfyUI-Nodes-Agents/scripts/codex_stdio_shim.py"]
+env = { COMFY_BRIDGE_URL = "http://127.0.0.1:9188/mcp" }
+```
+
+The shim requires ComfyUI (and the bridge) to be running; if it can't reach the
+HTTP bridge it exits non-zero with a clear stderr message so Codex surfaces the
+error. Use an absolute path to the shim.
 
 ## MCP tools
 
@@ -117,6 +138,7 @@ prompt and an `Agent Emit(channel=render)` on the output, then from the agent:
 | --- | --- | --- |
 | `COMFY_BRIDGE_MCP_PORT` | `9188` | Port the MCP bridge binds (use `0` for an ephemeral port, e.g. in tests). |
 | `COMFY_BRIDGE_TMP` | `.comfy_bridge_tmp` | Temp dir where `Agent Emit` writes image PNGs. |
+| `COMFY_BRIDGE_TMP_TTL` | `3600` | Age (seconds) after which `save_tensor_png` reaps old `img_*.png` temp files. |
 | `COMFY_BRIDGE_WORKFLOWS` | `workflows` | Dir that `comfy_run_workflow` loads `<name>.json` from. |
 | `COMFY_BASE_URL` | `http://127.0.0.1:8188` | ComfyUI HTTP API base URL used by `comfy_run_workflow` / `comfy_get_result`. |
 

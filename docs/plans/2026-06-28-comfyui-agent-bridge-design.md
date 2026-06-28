@@ -158,3 +158,6 @@ docs/plans/2026-06-28-comfyui-agent-bridge-design.md
 - `wait_seconds` on `Agent Receive` covers both blocking and non-blocking turns.
 - Images passed **by path**; text inline.
 - **Standalone-lean** scope: don't reinvent the 108-tool control surface.
+- MCP server ships on a **separate daemon-thread side port (default 9188, path
+  `/mcp`)** rather than mounted on PromptServer:8188 — the cleaner choice that
+  avoids ASGI-in-aiohttp coupling.
