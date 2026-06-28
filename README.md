@@ -24,9 +24,11 @@ install the dependency, then restart ComfyUI:
 
 ```bash
 cd ComfyUI/custom_nodes
-git clone <this-repo> ComfyUI-Nodes-Agents
-pip install -r ComfyUI-Nodes-Agents/requirements.txt   # mcp>=1.2.0 (validated on 1.28.1)
+git clone https://github.com/ethanfel/ComfyUI-Agent-Bridge
+pip install -r ComfyUI-Agent-Bridge/requirements.txt   # mcp>=1.2.0 (validated on 1.28.1)
 ```
+
+(The `custom_nodes` subdirectory name is arbitrary — ComfyUI loads the package regardless.)
 
 On startup ComfyUI loads the package and the bridge logs its URL:
 
@@ -72,7 +74,11 @@ then install the plugin; Codex auto-registers the `comfy` MCP server (HTTP, no
 auth) and the `comfyui-bridge` skill. Verified on Codex CLI 0.142.3:
 
 ```bash
-codex plugin marketplace add /path/to/ComfyUI-Nodes-Agents
+# from GitHub:
+codex plugin marketplace add ethanfel/ComfyUI-Agent-Bridge
+# ...or from a local clone:
+codex plugin marketplace add /path/to/ComfyUI-Agent-Bridge
+
 codex plugin add comfyui-agents@comfyui-agents
 ```
 
