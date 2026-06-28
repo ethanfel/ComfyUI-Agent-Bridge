@@ -89,3 +89,12 @@ class ChannelStore:
                 if remaining <= 0:
                     return empty
                 self._cond.wait(timeout=remaining)
+
+    def list_channels(self) -> list[dict]:
+        with self._lock:
+            return [
+                {"name": name, "in_turn": ch.inbox.turn,
+                 "out_turn": ch.outbox.turn,
+                 "consumed_out_turn": ch.last_consumed_out_turn}
+                for name, ch in sorted(self._channels.items())
+            ]
