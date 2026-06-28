@@ -16,6 +16,7 @@ _GLOBAL_ATTR = "_comfyui_agent_bridge_channel_store"
 class _Slot:
     text: str | None = None
     image_path: str | None = None
+    seed: int | None = None
     turn: int = 0
 
 
@@ -52,14 +53,20 @@ class ChannelStore:
             self._channels[name] = ch
         return ch
 
+    @staticmethod
+    def _payload(s: "_Slot") -> dict:
+        return {"turn": s.turn, "text": s.text, "image_path": s.image_path,
+                "seed": s.seed}
+
     # --- inbox: graph -> agent ---
     def emit(self, channel: str, text: str | None = None,
-             image_path: str | None = None) -> int:
+             image_path: str | None = None, seed: int | None = None) -> int:
         with self._cond:
             ch = self._chan(channel)
             ch.inbox.turn += 1
             ch.inbox.text = text
             ch.inbox.image_path = image_path
+            ch.inbox.seed = seed
             self._cond.notify_all()
             return ch.inbox.turn
 
@@ -67,33 +74,31 @@ class ChannelStore:
         with self._lock:
             ch = self._channels.get(channel)
             if ch is None:
-                return {"turn": 0, "text": None, "image_path": None}
-            s = ch.inbox
-            return {"turn": s.turn, "text": s.text, "image_path": s.image_path}
+                return {"turn": 0, "text": None, "image_path": None, "seed": None}
+            return self._payload(ch.inbox)
 
     # --- outbox: agent -> graph ---
     def push(self, channel: str, text: str | None = None,
-             image_path: str | None = None) -> int:
+             image_path: str | None = None, seed: int | None = None) -> int:
         with self._cond:
             ch = self._chan(channel)
             ch.outbox.turn += 1
             ch.outbox.text = text
             ch.outbox.image_path = image_path
+            ch.outbox.seed = seed
             self._cond.notify_all()
             return ch.outbox.turn
 
     def receive(self, channel: str, wait_seconds: float = 0.0,
                 should_abort=None, poll_interval: float = 0.1) -> dict:
-        empty = {"turn": 0, "text": None, "image_path": None}
+        empty = {"turn": 0, "text": None, "image_path": None, "seed": None}
         deadline = time.monotonic() + max(0.0, wait_seconds)
         with self._cond:
             while True:
                 ch = self._channels.get(channel)
                 if ch is not None and ch.outbox.turn > ch.last_consumed_out_turn:
                     ch.last_consumed_out_turn = ch.outbox.turn
-                    s = ch.outbox
-                    return {"turn": s.turn, "text": s.text,
-                            "image_path": s.image_path}
+                    return self._payload(ch.outbox)
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     return empty
@@ -111,9 +116,8 @@ class ChannelStore:
         with self._lock:
             ch = self._channels.get(channel)
             if ch is None:
-                return {"turn": 0, "text": None, "image_path": None}
-            s = ch.outbox
-            return {"turn": s.turn, "text": s.text, "image_path": s.image_path}
+                return {"turn": 0, "text": None, "image_path": None, "seed": None}
+            return self._payload(ch.outbox)
 
     def list_channels(self) -> list[dict]:
         with self._lock:

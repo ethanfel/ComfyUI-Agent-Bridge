@@ -7,8 +7,8 @@ class AgentReceive:
 
     CATEGORY = "agents/bridge"
     FUNCTION = "run"
-    RETURN_TYPES = ("STRING", "IMAGE")
-    RETURN_NAMES = ("text", "image")
+    RETURN_TYPES = ("STRING", "IMAGE", "INT")
+    RETURN_NAMES = ("text", "image", "seed")
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -36,7 +36,8 @@ class AgentReceive:
             image = images.load_png_tensor(payload["image_path"])
         else:
             image = images.empty_image()
-        return (text, image)
+        seed = payload.get("seed")
+        return (text, image, seed if seed is not None else 0)
 
     @staticmethod
     def _interrupt_check():
@@ -75,4 +76,4 @@ class AgentReceive:
             last = store.peek(channel)
             if last["turn"] > 0:
                 return self._format(last)
-        return ("", images.empty_image())
+        return ("", images.empty_image(), 0)

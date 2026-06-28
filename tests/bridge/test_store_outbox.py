@@ -48,7 +48,7 @@ def test_peek_does_not_consume():
 def test_receive_nonblocking_empty_channel():
     s = ChannelStore.instance()
     got = s.receive("nope", wait_seconds=0)
-    assert got == {"turn": 0, "text": None, "image_path": None}
+    assert got == {"turn": 0, "text": None, "image_path": None, "seed": None}
 
 def test_receive_blocks_until_push():
     s = ChannelStore.instance()

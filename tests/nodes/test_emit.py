@@ -21,4 +21,10 @@ def test_emit_image_materializes_path(tmp_path, monkeypatch):
 def test_emit_returns_passthrough():
     node = AgentEmit()
     out = node.run(channel="main", text="hi", image=None)
-    assert out == ("hi", None)  # (text, image) passthrough
+    assert out == ("hi", None, 0)  # (text, image, seed) passthrough
+
+def test_emit_sends_seed():
+    node = AgentEmit()
+    node.run(channel="main", text="hi", image=None, seed=999)
+    got = ChannelStore.instance().pull("main")
+    assert got["seed"] == 999

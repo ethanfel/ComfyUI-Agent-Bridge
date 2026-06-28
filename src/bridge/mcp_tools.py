@@ -15,11 +15,12 @@ def comfy_pull(channel: str = "main") -> dict:
 
 
 def comfy_push(channel: str = "main", text: str | None = None,
-               image_path: str | None = None) -> dict:
-    """Send text/image to the graph's Agent Receive node on a channel."""
+               image_path: str | None = None, seed: int | None = None) -> dict:
+    """Send text/image/seed to the graph's Agent Receive node on a channel."""
     # translate the agent-visible path back to the bridge's container-side path
     image_path = paths.to_local(image_path)
-    turn = ChannelStore.instance().push(channel, text=text, image_path=image_path)
+    turn = ChannelStore.instance().push(channel, text=text,
+                                        image_path=image_path, seed=seed)
     return {"channel": channel, "out_turn": turn}
 
 
