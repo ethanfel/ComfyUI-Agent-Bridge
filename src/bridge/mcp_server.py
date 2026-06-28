@@ -4,7 +4,7 @@ import threading
 
 from mcp.server.fastmcp import FastMCP
 
-from src.bridge import mcp_tools
+from . import mcp_tools
 
 _started = False
 _lock = threading.Lock()

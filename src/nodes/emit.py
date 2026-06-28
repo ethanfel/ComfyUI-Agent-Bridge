@@ -1,5 +1,5 @@
-from src.bridge.store import ChannelStore
-from src.bridge import images, paths
+from ..bridge.store import ChannelStore
+from ..bridge import images, paths
 
 
 class AgentEmit:

@@ -1,7 +1,7 @@
 """SDK-independent MCP tool logic. Bound to FastMCP in mcp_server.py."""
 import os
-from src.bridge.store import ChannelStore
-from src.bridge import workflows, paths
+from .store import ChannelStore
+from . import workflows, paths
 
 COMFY_BASE_URL = os.environ.get("COMFY_BASE_URL", "http://127.0.0.1:8188")
 
