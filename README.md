@@ -132,6 +132,42 @@ claude mcp add --transport http comfy http://127.0.0.1:9188/mcp
 
 Then in Claude Code, `/mcp` should list the five tools.
 
+## Running ComfyUI in Docker / on another host
+
+The bridge binds `127.0.0.1` by default, reachable only from the same host (inside
+the container). To reach it from an agent on another machine:
+
+1. **Bind all interfaces** — set `COMFY_BRIDGE_MCP_HOST=0.0.0.0` in the container.
+2. **Publish the port** — `-p 9188:9188` (or `ports: ["9188:9188"]` in compose).
+3. **Point the agent at the server IP**, not localhost:
+   ```bash
+   claude mcp add --transport http comfy http://192.168.1.12:9188/mcp
+   codex  mcp add comfy --url        http://192.168.1.12:9188/mcp
+   ```
+   For the Codex *plugin*, edit `.codex-plugin/mcp.json`'s `url` to the server IP
+   (or just use `codex mcp add` above).
+
+`COMFY_BASE_URL` stays `http://127.0.0.1:8188` — the bridge runs *inside* the
+ComfyUI container and reaches ComfyUI over the container's own localhost.
+
+**Images across hosts.** Images cross **by file path**, so the path `comfy_pull`
+returns must point at the same file the agent can open. With a **shared folder**
+between the container and your machine:
+
+- Put the temp dir in the share, e.g. `COMFY_BRIDGE_TMP=/shared/comfy_tmp` (in the container).
+- Mount that share at the **same absolute path** on your machine, so
+  `/shared/comfy_tmp/img_*.png` resolves on both sides — then `comfy_pull` /
+  `comfy_push` image paths work unchanged.
+- If the mount paths **differ** between container and host, the raw path won't
+  resolve agent-side. Either make the paths identical, or switch to base64-inline
+  images (not yet implemented — open an issue if you need it).
+
+Text needs none of this — it's inline.
+
+> **Security:** binding `0.0.0.0` exposes the bridge — including `comfy_run_workflow`
+> (runs saved workflows) and file-path reads — to your LAN with no authentication.
+> Keep it on a trusted network or firewall the port.
+
 ## MCP tools
 
 | Tool | Direction | Purpose |
@@ -165,6 +201,7 @@ prompt and an `Agent Emit(channel=render)` on the output, then from the agent:
 
 | Variable | Default | Effect |
 | --- | --- | --- |
+| `COMFY_BRIDGE_MCP_HOST` | `127.0.0.1` | Interface the MCP bridge binds. Set `0.0.0.0` to reach it from another host (e.g. ComfyUI in Docker). See [Running ComfyUI in Docker](#running-comfyui-in-docker--on-another-host). |
 | `COMFY_BRIDGE_MCP_PORT` | `9188` | Port the MCP bridge binds (use `0` for an ephemeral port, e.g. in tests). |
 | `COMFY_BRIDGE_TMP` | `.comfy_bridge_tmp` | Temp dir where `Agent Emit` writes image PNGs. |
 | `COMFY_BRIDGE_TMP_TTL` | `3600` | Age (seconds) after which `save_tensor_png` reaps old `img_*.png` temp files. |

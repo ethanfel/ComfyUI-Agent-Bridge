@@ -28,15 +28,28 @@ def registered_tool_names(mcp: FastMCP) -> list:
     return [t.name for t in getattr(mcp, "list_tools", lambda: [])()]
 
 
-def start_in_background(host: str = "127.0.0.1", port: int = None,
+def _resolve_bind(host, port):
+    """Resolve (host, port) from explicit args, else env, else defaults.
+
+    Set COMFY_BRIDGE_MCP_HOST=0.0.0.0 to reach the bridge from outside the host
+    (e.g. ComfyUI in Docker; also publish the port, and point the agent at the
+    server's LAN IP instead of 127.0.0.1).
+    """
+    if host is None:
+        host = os.environ.get("COMFY_BRIDGE_MCP_HOST", "127.0.0.1")
+    if port is None:
+        port = int(os.environ.get("COMFY_BRIDGE_MCP_PORT", "9188"))
+    return host, port
+
+
+def start_in_background(host: str = None, port: int = None,
                         _test_no_serve: bool = False) -> None:
     global _started
     with _lock:
         if _started:
             return
         _started = True
-    port = port if port is not None else int(
-        os.environ.get("COMFY_BRIDGE_MCP_PORT", "9188"))
+    host, port = _resolve_bind(host, port)
     mcp = build_server(host=host, port=port)
     if _test_no_serve:
         return
