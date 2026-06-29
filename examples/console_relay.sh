@@ -6,13 +6,15 @@
 # and URL, then starts relaying: each message an `Agent Emit` node writes to the
 # channel gets typed into the chosen pane.
 #
-# Env overrides (skip the matching prompt): COMFY_BRIDGE_URL, CHANNEL, TARGET,
-# POLL, PYTHON.
+# First arg (optional) is the bridge IP:  ./console_relay.sh 192.168.1.12
+# Env overrides (skip the matching prompt): COMFY_BRIDGE_IP, COMFY_BRIDGE_PORT,
+# CHANNEL, TARGET, POLL, PYTHON.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PY="${PYTHON:-python3}"
-URL="${COMFY_BRIDGE_URL:-http://127.0.0.1:9188/mcp}"
+IP="${1:-${COMFY_BRIDGE_IP:-127.0.0.1}}"
+PORT="${COMFY_BRIDGE_PORT:-9188}"
 CHANNEL="${CHANNEL:-console}"
 POLL="${POLL:-1.0}"
 
@@ -41,12 +43,14 @@ if [[ -z "$TARGET" ]]; then
 fi
 
 # --- confirm settings ---
-read -rp "Bridge URL [$URL]: " x; URL="${x:-$URL}"
+read -rp "Bridge IP [$IP]: " x; IP="${x:-$IP}"
+read -rp "Port [$PORT]: " x; PORT="${x:-$PORT}"
 read -rp "Channel [$CHANNEL]: " x; CHANNEL="${x:-$CHANNEL}"
 read -rp "Press Enter to submit each message? [Y/n] " x
 SUBMIT=(); [[ "${x:-}" == [nN]* ]] && SUBMIT=(--no-submit)
 
 echo
-echo "Relaying  channel='$CHANNEL'  $URL  ->  tmux '$TARGET'  (Ctrl-C to stop)"
+echo "Relaying  channel='$CHANNEL'  ${IP}:${PORT}  ->  tmux '$TARGET'  (Ctrl-C to stop)"
 exec "$PY" "$HERE/console_relay.py" \
-    --target "$TARGET" --channel "$CHANNEL" --url "$URL" --poll "$POLL" "${SUBMIT[@]}"
+    --target "$TARGET" --channel "$CHANNEL" --ip "$IP" --port "$PORT" \
+    --poll "$POLL" "${SUBMIT[@]}"

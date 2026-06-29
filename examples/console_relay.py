@@ -66,18 +66,29 @@ async def run(url, channel, target, poll, submit, socket):
                 await asyncio.sleep(poll)
 
 
+def resolve_url(args):
+    """--url wins; else build http://<ip>:<port>/mcp."""
+    if args.url:
+        return args.url
+    return f"http://{args.ip}:{args.port}/mcp"
+
+
 def main():
     p = argparse.ArgumentParser(description="Relay a bridge channel into a tmux pane.")
     p.add_argument("--target", required=True)
     p.add_argument("--channel", default="console")
-    p.add_argument("--url", default=os.environ.get("COMFY_BRIDGE_URL",
-                                                   "http://127.0.0.1:9188/mcp"))
+    p.add_argument("--ip", default=os.environ.get("COMFY_BRIDGE_IP", "127.0.0.1"),
+                   help="bridge host/IP (default 127.0.0.1)")
+    p.add_argument("--port", default=os.environ.get("COMFY_BRIDGE_PORT", "9188"))
+    p.add_argument("--url", default=os.environ.get("COMFY_BRIDGE_URL"),
+                   help="full MCP URL (overrides --ip/--port)")
     p.add_argument("--poll", type=float, default=1.0)
     p.add_argument("--no-submit", dest="submit", action="store_false")
     p.add_argument("--tmux-socket", default=None)
     a = p.parse_args()
     try:
-        asyncio.run(run(a.url, a.channel, a.target, a.poll, a.submit, a.tmux_socket))
+        asyncio.run(run(resolve_url(a), a.channel, a.target, a.poll, a.submit,
+                        a.tmux_socket))
     except KeyboardInterrupt:
         print("\n[relay] stopped")
 

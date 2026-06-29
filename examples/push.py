@@ -42,10 +42,14 @@ def main():
     p.add_argument("text", nargs="?", default=None)
     p.add_argument("--image", default=None, help="image path (must be openable by ComfyUI)")
     p.add_argument("--seed", type=int, default=None)
-    p.add_argument("--url", default=os.environ.get("COMFY_BRIDGE_URL",
-                                                   "http://127.0.0.1:9188/mcp"))
+    p.add_argument("--ip", default=os.environ.get("COMFY_BRIDGE_IP", "127.0.0.1"),
+                   help="bridge host/IP (default 127.0.0.1)")
+    p.add_argument("--port", default=os.environ.get("COMFY_BRIDGE_PORT", "9188"))
+    p.add_argument("--url", default=os.environ.get("COMFY_BRIDGE_URL"),
+                   help="full MCP URL (overrides --ip/--port)")
     a = p.parse_args()
-    asyncio.run(push(a.url, a.channel, a.text, a.image, a.seed))
+    url = a.url or f"http://{a.ip}:{a.port}/mcp"
+    asyncio.run(push(url, a.channel, a.text, a.image, a.seed))
 
 
 if __name__ == "__main__":
