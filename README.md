@@ -7,17 +7,15 @@ trigger runs.
 
 ## How it works
 
-A thread-safe singleton `ChannelStore` holds, per named channel, two **FIFO
-queues**: an **inbox** (graph -> agent) and an **outbox** (agent -> graph). Every
-emit/push is kept and delivered oldest-first — nothing is overwritten or dropped.
+A thread-safe singleton `ChannelStore` holds, per named channel, an **inbox**
+(graph -> agent) and an **outbox** (agent -> graph), each with a turn counter.
 ComfyUI nodes touch the store directly (same process). A `FastMCP`
 streamable-HTTP server runs in a daemon thread on a side port; its tools touch
-the same singleton. Text/seed cross inline; images cross by file path through a
+the same singleton. Text crosses inline; images cross by file path through a
 temp dir.
 
-- **inbox** = graph -> agent: `Agent Emit` enqueues, `comfy_pull` dequeues (oldest first).
-- **outbox** = agent -> graph: `comfy_push` enqueues, `Agent Receive` dequeues (oldest first).
-- Each message is delivered exactly once; when a queue is drained, reads return empty.
+- **inbox** = graph -> agent: written by `Agent Emit`, read by the `comfy_pull` tool.
+- **outbox** = agent -> graph: written by the `comfy_push` tool, read by `Agent Receive`.
 
 ## Install
 
@@ -46,9 +44,9 @@ bridge failure never blocks ComfyUI from loading the nodes.
 **Agent Emit (-> agent)** — send from the graph to the agent.
 - Inputs: `channel` (STRING, default `main`); optional `text` (multiline STRING),
   `image` (IMAGE), `seed` (INT, socket input — e.g. wire a KSampler seed).
-- Enqueues text/image/seed onto the channel inbox (image is saved to a PNG in the
-  temp dir and the path is stored). Passes `(text, image, seed)` straight through
-  as outputs, so you can wire it inline. Multiple emits queue up (FIFO).
+- Writes the latest text/image/seed to the channel inbox (image is saved to a PNG
+  in the temp dir and the path is stored). Passes `(text, image, seed)` straight
+  through as outputs, so you can wire it inline.
 
 **Agent Receive (<- agent)** — receive from the agent into the graph.
 - Inputs: `channel` (STRING, default `main`); `wait_seconds` (FLOAT, default
@@ -56,10 +54,9 @@ bridge failure never blocks ComfyUI from loading the nodes.
   (BOOLEAN, default `true`).
 - Outputs `(text, image, seed)` — `seed` (INT) is whatever the agent passed to
   `comfy_push(seed=...)`, or `0` if none. Wire it into a KSampler, etc.
-- Dequeues the **oldest** unread `comfy_push` on the channel (FIFO), blocking up
-  to `wait_seconds` for one to arrive. Every push is delivered exactly once and in
-  order, so in Auto Queue successive runs drain the queue message-by-message
-  (push A,B,C → receive A, then B, then C). No drops, no replays.
+- Blocks up to `wait_seconds` for a new `comfy_push` on the channel. Each pushed
+  value is **consumed once** (turn-based),
+  so a second receive with no new push won't replay it.
 - **`keep_last`** — on timeout (no new message), output the *last* message again
   instead of blanking. Great for Auto Queue so the display holds steady between
   evals. Off → returns `""` + a 64x64 black placeholder on timeout.
@@ -68,9 +65,8 @@ bridge failure never blocks ComfyUI from loading the nodes.
   instead of spinning. (Handled by the bundled `web/agent_bridge.js`; best-effort
   across ComfyUI frontend versions.)
 
-> One consumer per channel: each queued message goes to exactly one reader, so two
-> `Agent Receive` nodes on the same channel split the queue between them. Use
-> distinct channel names unless you deliberately want that fan-out.
+> Single Receive per channel: the consume-once model means two `Agent Receive`
+> nodes on the same channel compete for pushes. Use distinct channel names.
 
 > `wait_seconds` blocks a ComfyUI execution worker for its whole duration.
 > Outside interactive use, keep it modest (seconds, not hours) so you don't tie
@@ -186,7 +182,7 @@ this — it's inline.
 
 | Tool | Direction | Purpose |
 | --- | --- | --- |
-| `comfy_pull(channel="main")` | graph -> agent | Dequeue the oldest emitted message (FIFO; returns `{turn, text, image_path, seed}`, empty when drained). |
+| `comfy_pull(channel="main")` | graph -> agent | Read the latest text/image/seed emitted on a channel (returns `{turn, text, image_path, seed}`). |
 | `comfy_push(channel="main", text=None, image_path=None, seed=None)` | agent -> graph | Send text/image/seed to the channel's `Agent Receive` node. |
 | `comfy_list_channels()` | — | List active channels and their turn counters. |
 | `comfy_run_workflow(name, inputs=None, wait=True)` | — | Load a saved workflow from `workflows/`, optionally inject inputs, queue it via the ComfyUI API, optionally poll for results. |

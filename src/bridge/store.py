@@ -1,7 +1,6 @@
 import builtins
 import threading
 import time
-from collections import deque
 from dataclasses import dataclass, field
 
 # The singleton is stashed on `builtins` (one object per process, shared by every
@@ -13,22 +12,19 @@ from dataclasses import dataclass, field
 _GLOBAL_ATTR = "_comfyui_agent_bridge_channel_store"
 
 
-def _empty() -> dict:
-    return {"turn": 0, "text": None, "image_path": None, "seed": None}
-
-
-def _msg(turn, text, image_path, seed) -> dict:
-    return {"turn": turn, "text": text, "image_path": image_path, "seed": seed}
+@dataclass
+class _Slot:
+    text: str | None = None
+    image_path: str | None = None
+    seed: int | None = None
+    turn: int = 0
 
 
 @dataclass
 class _Channel:
-    # FIFO queues: every emit/push is kept and delivered oldest-first.
-    inbox: deque = field(default_factory=deque)   # graph -> agent
-    outbox: deque = field(default_factory=deque)  # agent -> graph
-    in_seq: int = 0          # total emitted (monotonic id)
-    out_seq: int = 0         # total pushed (monotonic id)
-    last_out: dict | None = None  # last delivered outbox message (for keep_last)
+    inbox: _Slot = field(default_factory=_Slot)
+    outbox: _Slot = field(default_factory=_Slot)
+    last_consumed_out_turn: int = 0
 
 
 class ChannelStore:
@@ -57,48 +53,55 @@ class ChannelStore:
             self._channels[name] = ch
         return ch
 
-    # --- inbox: graph -> agent (FIFO) ---
+    @staticmethod
+    def _payload(s: "_Slot") -> dict:
+        return {"turn": s.turn, "text": s.text, "image_path": s.image_path,
+                "seed": s.seed}
+
+    # --- inbox: graph -> agent ---
     def emit(self, channel: str, text: str | None = None,
              image_path: str | None = None, seed: int | None = None) -> int:
         with self._cond:
             ch = self._chan(channel)
-            ch.in_seq += 1
-            ch.inbox.append(_msg(ch.in_seq, text, image_path, seed))
+            ch.inbox.turn += 1
+            ch.inbox.text = text
+            ch.inbox.image_path = image_path
+            ch.inbox.seed = seed
             self._cond.notify_all()
-            return ch.in_seq
+            return ch.inbox.turn
 
     def pull(self, channel: str) -> dict:
-        """Pop the oldest emitted message (FIFO); empty when drained."""
         with self._lock:
             ch = self._channels.get(channel)
-            if ch is None or not ch.inbox:
-                return _empty()
-            return ch.inbox.popleft()
+            if ch is None:
+                return {"turn": 0, "text": None, "image_path": None, "seed": None}
+            return self._payload(ch.inbox)
 
-    # --- outbox: agent -> graph (FIFO) ---
+    # --- outbox: agent -> graph ---
     def push(self, channel: str, text: str | None = None,
              image_path: str | None = None, seed: int | None = None) -> int:
         with self._cond:
             ch = self._chan(channel)
-            ch.out_seq += 1
-            ch.outbox.append(_msg(ch.out_seq, text, image_path, seed))
+            ch.outbox.turn += 1
+            ch.outbox.text = text
+            ch.outbox.image_path = image_path
+            ch.outbox.seed = seed
             self._cond.notify_all()
-            return ch.out_seq
+            return ch.outbox.turn
 
     def receive(self, channel: str, wait_seconds: float = 0.0,
                 should_abort=None, poll_interval: float = 0.1) -> dict:
-        """Pop the oldest pushed message (FIFO), waiting up to wait_seconds."""
+        empty = {"turn": 0, "text": None, "image_path": None, "seed": None}
         deadline = time.monotonic() + max(0.0, wait_seconds)
         with self._cond:
             while True:
                 ch = self._channels.get(channel)
-                if ch is not None and ch.outbox:
-                    msg = ch.outbox.popleft()
-                    ch.last_out = msg
-                    return msg
+                if ch is not None and ch.outbox.turn > ch.last_consumed_out_turn:
+                    ch.last_consumed_out_turn = ch.outbox.turn
+                    return self._payload(ch.outbox)
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    return _empty()
+                    return empty
                 if should_abort is not None:
                     # may raise (e.g. ComfyUI interrupt) to break the wait early;
                     # wake in short slices so an interrupt is noticed promptly.
@@ -109,18 +112,18 @@ class ChannelStore:
                 self._cond.wait(timeout=wait_for)
 
     def peek(self, channel: str) -> dict:
-        """Last *delivered* outbox message, WITHOUT touching the queue (keep_last)."""
+        """Last pushed outbox value, WITHOUT consuming it (for keep-last)."""
         with self._lock:
             ch = self._channels.get(channel)
-            if ch is None or ch.last_out is None:
-                return _empty()
-            return ch.last_out
+            if ch is None:
+                return {"turn": 0, "text": None, "image_path": None, "seed": None}
+            return self._payload(ch.outbox)
 
     def list_channels(self) -> list[dict]:
         with self._lock:
             return [
-                {"name": name,
-                 "in_turn": ch.in_seq, "out_turn": ch.out_seq,
-                 "in_pending": len(ch.inbox), "out_pending": len(ch.outbox)}
+                {"name": name, "in_turn": ch.inbox.turn,
+                 "out_turn": ch.outbox.turn,
+                 "consumed_out_turn": ch.last_consumed_out_turn}
                 for name, ch in sorted(self._channels.items())
             ]

@@ -14,12 +14,9 @@ def test_pull_unknown_channel_is_empty_not_error():
     got = s.pull("never")
     assert got == {"turn": 0, "text": None, "image_path": None, "seed": None}
 
-def test_emit_pull_is_fifo():
+def test_emit_bumps_turn_each_time():
     s = ChannelStore.instance()
     s.emit("main", text="a")
     s.emit("main", text="b")
-    first = s.pull("main")
-    second = s.pull("main")
-    assert (first["turn"], first["text"]) == (1, "a")   # oldest first
-    assert (second["turn"], second["text"]) == (2, "b")
-    assert s.pull("main")["text"] is None               # drained
+    assert s.pull("main")["turn"] == 2
+    assert s.pull("main")["text"] == "b"
