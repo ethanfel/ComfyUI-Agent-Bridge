@@ -73,7 +73,8 @@ async def _roundtrip():
             # agent -> graph: push via the tool, read via the store
             pushed = _payload(await session.call_tool(
                 "comfy_push", {"channel": "rt", "text": "hi-from-agent"}))
-            assert pushed == {"channel": "rt", "out_turn": 1}
+            assert pushed["channel"] == "rt" and pushed["out_turn"] == 1
+            assert pushed["warnings"] == []  # valid push -> no sender warnings
             got = ChannelStore.instance().receive("rt", wait_seconds=0)
             assert got["text"] == "hi-from-agent"
 
