@@ -4,6 +4,7 @@ import traceback
 from ..bridge.store import ChannelStore
 from ..bridge import images
 from ..bridge.logutil import log, short
+from ..bridge.anytype import ANY
 
 
 class AgentReceive:
@@ -23,6 +24,12 @@ class AgentReceive:
                                            "max": 86400.0, "step": 1.0}),
                 "keep_last": ("BOOLEAN", {"default": True}),
                 "stop_on_timeout": ("BOOLEAN", {"default": True}),
+            },
+            "optional": {
+                # Order-only dependency: wire any upstream output here to force
+                # that node to run BEFORE this Receive (e.g. an Agent Emit that
+                # sends the prompt first). The value itself is ignored.
+                "signal": (ANY, {}),
             },
         }
 
@@ -94,9 +101,11 @@ class AgentReceive:
             pass
 
     def run(self, channel="main", wait_seconds=30.0, keep_last=True,
-            stop_on_timeout=True):
+            stop_on_timeout=True, signal=None):
+        # `signal` is an order-only dependency; its presence is what matters.
         log(f"Agent Receive[{channel}] waiting up to {wait_seconds}s "
-            f"(keep_last={keep_last}, stop_on_timeout={stop_on_timeout})")
+            f"(keep_last={keep_last}, stop_on_timeout={stop_on_timeout}, "
+            f"signal={'yes' if signal is not None else 'no'})")
         store = ChannelStore.instance()
         got = store.receive(channel, wait_seconds=wait_seconds,
                             should_abort=self._interrupt_check)

@@ -14,6 +14,16 @@ def test_is_changed_is_always_dirty():
     assert math.isnan(a) and math.isnan(b)
     assert a != b  # NaN != NaN
 
+def test_has_optional_signal_input():
+    it = AgentReceive.INPUT_TYPES()
+    assert "signal" in it.get("optional", {})
+
+def test_run_accepts_and_ignores_signal():
+    ChannelStore.instance().push("main", text="ok")
+    node = AgentReceive()
+    text, image, seed = node.run(channel="main", wait_seconds=0.0, signal=object())
+    assert text == "ok"
+
 def test_receive_text(monkeypatch):
     ChannelStore.instance().push("main", text="done")
     node = AgentReceive()

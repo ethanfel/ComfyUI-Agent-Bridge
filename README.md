@@ -51,7 +51,11 @@ bridge failure never blocks ComfyUI from loading the nodes.
 **Agent Receive (<- agent)** — receive from the agent into the graph.
 - Inputs: `channel` (STRING, default `main`); `wait_seconds` (FLOAT, default
   `30.0`, max `86400`); `keep_last` (BOOLEAN, default `true`); `stop_on_timeout`
-  (BOOLEAN, default `true`).
+  (BOOLEAN, default `true`); optional `signal` (any type).
+- **`signal`** — an order-only dependency input: wire **any** upstream output
+  into it to force that node to run *before* this Receive. Use it to guarantee an
+  `Agent Emit` (which sends the prompt to the agent) fires first, so Receive isn't
+  waiting before the agent has anything to work on. The value is ignored.
 - Outputs `(text, image, seed)` — `seed` (INT) is whatever the agent passed to
   `comfy_push(seed=...)`, or `0` if none. Wire it into a KSampler, etc.
 - Blocks up to `wait_seconds` for a new `comfy_push` on the channel. Each pushed
